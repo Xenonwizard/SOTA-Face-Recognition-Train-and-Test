@@ -25,6 +25,9 @@ else:
     # If we're already in the SOTA repo directory
     sys.path.append(current_dir)
 
+
+DATASET_DIR = "./celeb-dataset" 
+
 warnings.filterwarnings('ignore')
 
 class CelebDataset(Dataset):
@@ -209,9 +212,8 @@ class SOTAFaceModel(nn.Module):
 
 class SOTAFaceTrainer:
     """Training pipeline for SOTA face recognition models"""
-    def __init__(self, data_dir="celeb-dataset", results_dir="results"):
-        # Set paths relative to current directory
-        self.data_dir = os.path.join(current_dir, data_dir)
+    def __init__(self, results_dir="results"):
+        self.data_dir = DATASET_DIR
         self.results_dir = os.path.join(current_dir, results_dir)
         os.makedirs(self.results_dir, exist_ok=True)
         
@@ -534,7 +536,7 @@ class SOTAFaceTrainer:
 # Main execution
 if __name__ == "__main__":
     # Initialize trainer
-    trainer = SOTAFaceTrainer(data_dir="celeb-dataset")
+    trainer = SOTAFaceTrainer()
     
     # Run experiments
     results = trainer.run_comprehensive_experiment()

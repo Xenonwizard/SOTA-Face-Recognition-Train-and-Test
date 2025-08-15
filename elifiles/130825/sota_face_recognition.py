@@ -206,7 +206,7 @@ class SOTAFaceEvaluator:
         logger.info(f"Results path: {self.results_dir}")
         
         self.model_files = {}
-        models_dir = os.path.join(current_dir, '..', '..', 'models')
+        models_dir = os.path.join(current_dir, '..', '..', 'model')
         # Map to actual downloaded model files
         model_filenames= {
             'AdaFace': 'adaface-r100-ms1mv2.pth',

@@ -205,8 +205,10 @@ class SOTAFaceEvaluator:
         logger.info(f"Dataset path: {self.data_dir}")
         logger.info(f"Results path: {self.results_dir}")
         
+        self.model_files = {}
+        models_dir = os.path.join(current_dir, '..', '..', 'models')
         # Map to actual downloaded model files
-        self.model_files = {
+        model_filenames= {
             'AdaFace': 'adaface-r100-ms1mv2.pth',
             'ArcFace': 'arcface-r100-ms1mv2.pth', 
             'ArcFace_Combined': 'combined-r100-ms1mv2.pth',
@@ -216,6 +218,18 @@ class SOTAFaceEvaluator:
             'SphereFace': 'sphereface-r100-ms1mv2.pth',
             'UniFace': 'uniface-r100-ms1mv2.pth'
         }
+
+        # Build full paths and verify files exist
+        for model_name, filename in model_filenames.items():
+            full_path = os.path.join(models_dir, filename)
+            if os.path.exists(full_path):
+                self.model_files[model_name] = full_path
+                logger.info(f"✅ Found {model_name}: {filename}")
+            else:
+                logger.warning(f"❌ Missing {model_name}: {full_path}")
+
+            logger.info(f"Models directory: {models_dir}")
+            logger.info(f"Found {len(self.model_files)} out of {len(model_filenames)} model files")
         
         # Initialize datasets using PyTorch utilities
         try:

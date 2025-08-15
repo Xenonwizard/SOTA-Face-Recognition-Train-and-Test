@@ -250,9 +250,15 @@ class SOTAFaceEvaluator:
         """Train model using PyTorch training utilities"""
         logger.info(f"Training {model_name}")
         
-        # Get pretrained model path
-        model_file = self.model_files.get(model_name)
-        model_path = os.path.join(current_dir, 'model', model_file) if model_file else None
+        # # Get pretrained model path
+        # model_file = self.model_files.get(model_name)
+        # model_path = os.path.join(current_dir, 'model', model_file) if model_file else None
+
+        model_path = self.model_files.get(model_name)  # This is already the full path
+    
+        if not model_path or not os.path.exists(model_path):
+            logger.warning(f"Model file not found for {model_name}, using ResNet50 fallback")
+            model_path = None
         
         # Create model with pretrained backbone
         model = PretrainedFaceModel(model_name, self.num_classes, model_path)

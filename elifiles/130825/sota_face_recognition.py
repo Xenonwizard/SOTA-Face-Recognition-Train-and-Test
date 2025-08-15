@@ -31,7 +31,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 # ---- import repo modules (do not copy) ----
 sys.path.append(REPO_DIR)
 # The repo provides model_zoo and feature extraction helpers
-from model_zoo.iresnet import iresnet100, iresnet50  # example backbones
+# from model_zoo.iresnet import iresnet100, iresnet50  # example backbones
 # NOTE: we’ll load state_dicts directly; the repo also has feature_extractor.py if you prefer a CLI.
 
 # ---- model weight mapping (adjust filenames if needed) ----

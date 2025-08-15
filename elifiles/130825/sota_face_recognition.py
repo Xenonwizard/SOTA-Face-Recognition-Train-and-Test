@@ -24,7 +24,8 @@ warnings.filterwarnings("ignore")
 # ---- paths ----
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = CURRENT_DIR  # code sits inside the cloned repo folder per your screenshot
-DATASET_DIR = os.path.join(REPO_DIR, "celeb-dataset")
+DATASET_DIR = "/home/ssm-user/SOTA-Face-Recognition-Train-and-Test/celeb-dataset"
+MODEL_DIR   = "/home/ssm-user/SOTA-Face-Recognition-Train-and-Test/model"
 RESULTS_DIR = os.path.join(REPO_DIR, "elifiles", time.strftime("%y%m%d"))
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -44,7 +45,6 @@ MODEL_FILES = {
     "SphereFace":     "sphereface-r100-ms1mv2.pth",
     "UniFace":        "uniface-r100-ms1mv2.pth",
 }
-MODEL_DIR = os.path.join(REPO_DIR, "model")
 
 # ---- face detector (MTCNN) ----
 try:

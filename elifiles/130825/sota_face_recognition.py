@@ -42,8 +42,7 @@ warnings.filterwarnings("ignore")
 # -------------------- IMPORT REPO BACKBONE --------------------
 sys.path.append(REPO_DIR)
 
-    # Some branches place it here:
-from model import iresnet100
+from model.iresnet import iresnet
 
 
 # -------------------- FACE DETECTOR (MTCNN) --------------------
@@ -221,3 +220,86 @@ def evaluate_one_model(model_name: str, weight_path: str, enc: LabelEncoder, tra
         "true_celebrity": true_names,
         "predicted_celebrity": pred_names_p,
         "confidence": conf_p,
+        "correct": (ypred_p == yte),
+        "model": model_name,
+        "classifier": "prototype"
+    })
+    df.to_csv(f"{RESULTS_DIR}/{model_name}_detailed_results_prototype.csv", index=False)
+
+    pred_names_nn = enc.inverse_transform(ypred_nn)
+    df_nn = pd.DataFrame({
+        "image_path": [p.split("/")[-1] for p in te_paths],
+        "true_celebrity": true_names,
+        "predicted_celebrity": pred_names_nn,
+        "confidence": conf_nn,
+        "correct": (ypred_nn == yte),
+        "model": model_name,
+        "classifier": "1NN"
+    })
+    df_nn.to_csv(f"{RESULTS_DIR}/{model_name}_detailed_results_1nn.csv", index=False)
+
+    # Per-celeb breakdown (prototype)
+    celeb = df.groupby("true_celebrity").agg(correct_count=("correct","sum"),
+                                             total_count=("correct","count"),
+                                             avg_confidence=("confidence","mean"))
+    celeb["accuracy"] = (100.0 * celeb["correct_count"] / celeb["total_count"]).round(2)
+    celeb.to_csv(f"{RESULTS_DIR}/{model_name}_celebrity_metrics_prototype.csv")
+
+    return {
+        "model": model_name,
+        "overall_accuracy": 100.0 * acc,
+        "precision_weighted": 100.0 * prec_w,
+        "recall_weighted": 100.0 * rec_w,
+        "f1_weighted": 100.0 * f1_w,
+        "precision_macro": 100.0 * prec_m,
+        "recall_macro": 100.0 * rec_m,
+        "f1_macro": 100.0 * f1_m,
+        "confusion_matrix": cm,
+        "classification_report": cls_report,
+        "total_test_images": int(len(df)),
+        "results_csv_prototype": f"{RESULTS_DIR}/{model_name}_detailed_results_prototype.csv",
+        "results_csv_1nn": f"{RESULTS_DIR}/{model_name}_detailed_results_1nn.csv"
+    }
+
+# -------------------- MAIN --------------------
+if __name__ == "__main__":
+    logging.info(f"Device:  {DEVICE}")
+    logging.info(f"Dataset: {DATASET_DIR}")
+    logging.info(f"Models:  {MODEL_DIR}")
+    logging.info(f"Results: {RESULTS_DIR}")
+
+    TRAIN_SPLIT, TEST_SPLIT, ENCODER = build_splits()
+
+    all_metrics = []
+    for model_name, wpath in MODEL_FILES.items():
+        try:
+            open(wpath, "rb").close()
+        except Exception:
+            logging.warning(f"Skipping {model_name}: weights not found at {wpath}")
+            all_metrics.append({"model": model_name, "error": "missing weights"})
+            continue
+
+        logging.info(f"=== Evaluating {model_name} (iresnet r100, cosine) ===")
+        m = evaluate_one_model(model_name, wpath, ENCODER, TRAIN_SPLIT, TEST_SPLIT)
+        all_metrics.append(m)
+        if "error" not in m:
+            logging.info(f"{model_name}: Acc={m['overall_accuracy']:.1f}%  "
+                         f"F1w={m['f1_weighted']:.1f}%  F1m={m['f1_macro']:.1f}%  "
+                         f"N={m['total_test_images']}")
+
+    summary = pd.DataFrame(all_metrics)
+    try:
+        summary_ok = summary[summary["overall_accuracy"].notna()].sort_values("overall_accuracy", ascending=False)
+    except Exception:
+        summary_ok = summary
+    summary.to_csv(f"{RESULTS_DIR}/comprehensive_summary_cosine.csv", index=False)
+
+    logging.info("\n================ FINAL EVALUATION SUMMARY (Cosine) ================\n")
+    if len(summary_ok) > 0:
+        for i, row in summary_ok.reset_index(drop=True).iterrows():
+            logging.info(f"{i+1:>2}. {row['model']:<16} Acc {row['overall_accuracy']:5.1f}% | "
+                         f"F1w {row['f1_weighted']:5.1f}% | F1m {row['f1_macro']:5.1f}% | "
+                         f"N={int(row['total_test_images'])}")
+    else:
+        logging.info("No successful evaluations (check weights and detections).")
+    logging.info(f"\nCSV saved to: {RESULTS_DIR}")

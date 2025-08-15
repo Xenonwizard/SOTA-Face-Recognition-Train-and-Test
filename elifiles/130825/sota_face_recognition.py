@@ -1,94 +1,89 @@
-# sota_fr_eval.py
-import os, sys, glob, time, logging, warnings
-from dataclasses import dataclass
+# celeb_benchmark_cosine_iresnet.py
+# Evaluate pretrained SOTA FR (.pth) with repo's iresnet backbone + cosine classifiers.
+# Hardcoded absolute paths. Standardized sklearn metrics only.
+
+import sys, glob, logging, warnings
 from typing import List, Tuple, Dict
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
-
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_recall_fscore_support,
                              classification_report, confusion_matrix)
 
-# ---- logging ----
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-log = logging.getLogger("sota_fr_eval")
-warnings.filterwarnings("ignore")
+# -------------------- HARD-CODED PATHS --------------------
+REPO_DIR     = "/home/ssm-user/SOTA-FR-train-and-test"
+DATASET_DIR  = "/home/ssm-user/SOTA-FR-train-and-test/celeb-dataset"
+MODEL_DIR    = "/home/ssm-user/SOTA-FR-train-and-test/model"
+RESULTS_DIR  = "/home/ssm-user/SOTA-FR-train-and-test/elifiles/130825"
 
-# ---- paths ----
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_DIR = CURRENT_DIR  # code sits inside the cloned repo folder per your screenshot
-DATASET_DIR = "/home/ssm-user/SOTA-Face-Recognition-Train-and-Test/celeb-dataset"
-MODEL_DIR   = "/home/ssm-user/SOTA-Face-Recognition-Train-and-Test/model"
-RESULTS_DIR = os.path.join(REPO_DIR, "elifiles", time.strftime("%y%m%d"))
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
-# ---- import repo modules (do not copy) ----
-sys.path.append(REPO_DIR)
-# The repo provides model_zoo and feature extraction helpers
-# from model_zoo.iresnet import iresnet100, iresnet50  # example backbones
-# NOTE: we’ll load state_dicts directly; the repo also has feature_extractor.py if you prefer a CLI.
-
-# ---- model weight mapping (adjust filenames if needed) ----
-MODEL_FILES = {
-    "ArcFace":        "arcface-r100-ms1mv2.pth",
-    "CurricularFace": "curricularface-r100-ms1mv2.pth",
-    "MagFace":        "magface-r100-ms1mv2.pth",
-    "AdaFace":        "adaface-r100-ms1mv2.pth",
-    "CosFace":        "cosface-r100-ms1mv2.pth",
-    "SphereFace":     "sphereface-r100-ms1mv2.pth",
-    "UniFace":        "uniface-r100-ms1mv2.pth",
+MODEL_FILES: Dict[str, str] = {
+    # keep only the ones you actually have; others will be skipped gracefully
+    "ArcFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/arcface-r100-ms1mv2.pth",
+    "CurricularFace": "/home/ssm-user/SOTA-FR-train-and-test/model/curricularface-r100-ms1mv2.pth",
+    "MagFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/magface-r100-ms1mv2.pth",
+    "AdaFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/adaface-r100-ms1mv2.pth",
+    "CosFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/cosface-r100-ms1mv2.pth",
+    "SphereFace":     "/home/ssm-user/SOTA-FR-train-and-test/model/sphereface-r100-ms1mv2.pth",
+    "UniFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/uniface-r100-ms1mv2.pth",
 }
 
-# ---- face detector (MTCNN) ----
+# -------------------- LOGGING --------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+log = logging.getLogger("cosine_iresnet")
+warnings.filterwarnings("ignore")
+
+# -------------------- IMPORT REPO BACKBONE --------------------
+sys.path.append(REPO_DIR)
+
+    # Some branches place it here:
+from model import iresnet100
+
+
+# -------------------- FACE DETECTOR (MTCNN) --------------------
 try:
     from facenet_pytorch import MTCNN
-    mtcnn = MTCNN(image_size=112, margin=20, post_process=True, device='cuda' if torch.cuda.is_available() else 'cpu')
 except Exception as e:
-    raise RuntimeError("Please `pip install facenet-pytorch` for MTCNN cropping") from e
+    raise RuntimeError("Install facenet-pytorch: `pip install facenet-pytorch`") from e
 
-# ---- transforms: FR-standard, not ImageNet ----
-FR_TRANSFORM = transforms.Compose([
-    transforms.Resize((112, 112)),
-    transforms.ToTensor(),                 # 0..1
-    transforms.Normalize([0.5, 0.5, 0.5],  # -> [-1, 1]
-                         [0.5, 0.5, 0.5]),
-])
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+mtcnn = MTCNN(image_size=112, margin=20, post_process=True, device=str(DEVICE))
 
+# 112x112 RGB → [-1,1] (mean=.5,std=.5) which these FR models expect
+NORM = transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+
+# -------------------- DATA --------------------
 def list_images(root: str, is_training: bool) -> List[Tuple[str, str]]:
-    """Return list of (path, class_name) respecting *_test split rule."""
-    out = []
-    ethnicities = ['caucasian', 'chinese', 'indian', 'malay']
+    out: List[Tuple[str,str]] = []
+    ethnicities = ["caucasian", "chinese", "indian", "malay"]
     for eth in ethnicities:
-        class_dirs = glob.glob(os.path.join(root, eth, "*/"))
+        class_dirs = glob.glob(f"{root}/{eth}/*/")
         for cdir in class_dirs:
-            cname = os.path.basename(cdir.rstrip("/"))
+            cname = cdir.rstrip("/").split("/")[-1]
             is_test = cname.endswith("_test")
             if is_training and is_test:
                 continue
             if (not is_training) and (not is_test):
                 continue
-            cname = cname.replace("_test", "")
+            cname_clean = cname.replace("_test", "")
             for ext in ("*.jpg","*.jpeg","*.png","*.bmp","*.webp"):
-                for p in glob.glob(os.path.join(cdir, ext)):
-                    out.append((p, cname))
+                for p in glob.glob(f"{cdir}{ext}"):
+                    out.append((p, cname_clean))
     return out
 
-def crop_face(img_path: str) -> Image.Image:
-    """Detect and return an aligned 112x112 face. If detection fails, return None."""
-    img = Image.open(img_path).convert("RGB")
-    tensor = mtcnn(img)  # returns 3x112x112 tensor or None
-    if tensor is None:
+def crop_face(img_path: str):
+    try:
+        img = Image.open(img_path).convert("RGB")
+    except Exception:
         return None
-    # convert back to PIL for transform pipeline, or just normalize tensor directly
-    pil = transforms.ToPILImage()(tensor)
-    return pil
+    t = mtcnn(img)  # 3x112x112 or None
+    return t
 
 @dataclass
 class Split:
@@ -96,20 +91,17 @@ class Split:
     names: List[str]
 
 def build_splits() -> Tuple[Split, Split, LabelEncoder]:
-    train_pairs = list_images(DATASET_DIR, is_training=True)
-    test_pairs  = list_images(DATASET_DIR, is_training=False)
-    if not train_pairs:
-        raise FileNotFoundError(f"No training images found under {DATASET_DIR}")
-    if not test_pairs:
-        raise FileNotFoundError(f"No test images found under {DATASET_DIR}")
-
-    train_paths, train_names = zip(*train_pairs)
-    test_paths,  test_names  = zip(*test_pairs)
-
-    # shared encoder with deterministic ordering
+    tr_pairs = list_images(DATASET_DIR, is_training=True)
+    te_pairs = list_images(DATASET_DIR, is_training=False)
+    if len(tr_pairs) == 0:
+        raise FileNotFoundError(f"No training images under {DATASET_DIR}")
+    if len(te_pairs) == 0:
+        raise FileNotFoundError(f"No test images under {DATASET_DIR}")
+    tr_paths, tr_names = zip(*tr_pairs)
+    te_paths, te_names = zip(*te_pairs)
     enc = LabelEncoder()
-    enc.fit(sorted(set(train_names) | set(test_names)))  # union, sorted
-    return Split(list(train_paths), list(train_names)), Split(list(test_paths), list(test_names)), enc
+    enc.fit(sorted(list(set(tr_names) | set(te_names))))  # deterministic union
+    return Split(list(tr_paths), list(tr_names)), Split(list(te_paths), list(te_names)), enc
 
 class FaceCropDataset(Dataset):
     def __init__(self, split: Split, encoder: LabelEncoder):
@@ -121,14 +113,13 @@ class FaceCropDataset(Dataset):
 
     def __getitem__(self, idx):
         p = self.paths[idx]
-        name = self.names[idx]
-        y = self.encoder.transform([name])[0]
-        face = crop_face(p)
-        if face is None:
-            # empty tensor — will be skipped later
-            return None, y, name, p
-        x = FR_TRANSFORM(face)
-        return x, y, name, p
+        y_name = self.names[idx]
+        y = int(self.encoder.transform([y_name])[0])
+        t = crop_face(p)
+        if t is None:
+            return None, y, y_name, p
+        x = NORM(t)  # already 112x112 from MTCNN
+        return x, y, y_name, p
 
 def collate_skip_none(batch):
     batch = [b for b in batch if b[0] is not None]
@@ -137,149 +128,96 @@ def collate_skip_none(batch):
     xs, ys, names, paths = zip(*batch)
     return torch.stack(xs, 0), torch.tensor(ys, dtype=torch.long), list(names), list(paths)
 
-# --- Load FR backbone and return a feature extractor (embeddings) ---
-def load_backbone(model_name: str, weight_path: str, device) -> nn.Module:
-    # iresnet100 is commonly used for r100
-    if "r100" in os.path.basename(weight_path) or "100" in model_name.lower():
-        net = iresnet100(num_features=512)  # 512-d embeddings typical for ArcFace
-    else:
-        net = iresnet50(num_features=512)
-    state = torch.load(weight_path, map_location='cpu')
-    # accept both {'state_dict':...} and raw dict
-    if isinstance(state, dict) and 'state_dict' in state:
-        state = state['state_dict']
-    # clean 'module.' prefixes
+# -------------------- BACKBONE LOADER --------------------
+def load_iresnet_r100(weight_path: str) -> nn.Module:
+    net = iresnet100(num_features=512)  # 512-d embeddings
+    state = torch.load(weight_path, map_location="cpu")
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
     state = {k.replace("module.", ""): v for k, v in state.items()}
     missing, unexpected = net.load_state_dict(state, strict=False)
-    log.info(f"{model_name}: loaded weights ({len(missing)} missing, {len(unexpected)} unexpected)")
-    net.fc = nn.Identity()  # ensure outputs are embeddings
-    net = net.to(device).eval()
+    log.info(f"Loaded {weight_path}: missing={len(missing)} unexpected={len(unexpected)}")
+    net.fc = nn.Identity()
+    net = net.to(DEVICE).eval()
     return net
 
 @torch.no_grad()
-def compute_embeddings(net: nn.Module, loader: DataLoader, device) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
+def compute_embeddings(net: nn.Module, loader: DataLoader):
     all_feat, all_y, all_names, all_paths = [], [], [], []
     for batch in loader:
-        if batch is None:  # all skipped
+        if batch is None:
             continue
         x, y, names, paths = batch
-        x = x.to(device)
-        feat = net(x)                      # [B, 512]
-        feat = nn.functional.normalize(feat, p=2, dim=1)  # cosine-normalize
-        all_feat.append(feat.cpu().numpy())
+        x = x.to(DEVICE)
+        z = net(x)                               # [B, 512]
+        z = nn.functional.normalize(z, p=2, dim=1)
+        all_feat.append(z.cpu().numpy())
         all_y.append(y.numpy())
         all_names.extend(names)
         all_paths.extend(paths)
     if not all_feat:
-        return np.empty((0, 512)), np.array([]), [], []
+        return np.empty((0,512)), np.array([]), [], []
     return np.concatenate(all_feat, 0), np.concatenate(all_y, 0), all_names, all_paths
 
-def evaluate_one_model(model_name: str, weight_file: str, device, enc: LabelEncoder) -> Dict:
-    weight_path = os.path.join(MODEL_DIR, weight_file)
-    if not os.path.exists(weight_path):
-        log.warning(f"Missing weights for {model_name}: {weight_path}")
-        return {"model": model_name, "error": "missing weights"}
+# -------------------- COSINE CLASSIFIERS --------------------
+def cosine_prototypes(X: np.ndarray, y: np.ndarray, n_classes: int) -> np.ndarray:
+    protos = np.zeros((n_classes, X.shape[1]), dtype=np.float32)
+    for c in range(n_classes):
+        mask = (y == c)
+        if not np.any(mask):
+            continue
+        m = X[mask].mean(axis=0)
+        m = m / (np.linalg.norm(m) + 1e-12)
+        protos[c] = m.astype(np.float32)
+    return protos
 
-    net = load_backbone(model_name, weight_path, device)
+def predict_by_prototypes(X: np.ndarray, protos: np.ndarray):
+    scores = X @ protos.T  # cosine because rows are L2-normalized
+    return scores.argmax(axis=1), scores.max(axis=1)
 
-    # datasets & loaders
-    train_ds = FaceCropDataset(TRAIN_SPLIT, enc)
-    test_ds  = FaceCropDataset(TEST_SPLIT, enc)
+def predict_by_1nn(train_X: np.ndarray, train_y: np.ndarray, test_X: np.ndarray):
+    scores = test_X @ train_X.T
+    idx = scores.argmax(axis=1)
+    return train_y[idx], scores.max(axis=1)
+
+# -------------------- EVALUATION --------------------
+def evaluate_one_model(model_name: str, weight_path: str, enc: LabelEncoder, train_split: Split, test_split: Split) -> Dict:
+    train_ds = FaceCropDataset(train_split, enc)
+    test_ds  = FaceCropDataset(test_split, enc)
     train_loader = DataLoader(train_ds, batch_size=64, shuffle=False, num_workers=0,
                               collate_fn=collate_skip_none, pin_memory=torch.cuda.is_available())
-    test_loader  = DataLoader(test_ds,  batch_size=64, shuffle=False, num_workers=0,
+    test_loader  = DataLoader(test_ds, batch_size=64, shuffle=False, num_workers=0,
                               collate_fn=collate_skip_none, pin_memory=torch.cuda.is_available())
 
-    # embeddings
-    log.info(f"[{model_name}] Extracting train embeddings...")
-    Xtr, ytr, tr_names, tr_paths = compute_embeddings(net, train_loader, device)
-    log.info(f"[{model_name}] Extracting test embeddings...")
-    Xte, yte, te_names, te_paths = compute_embeddings(net, test_loader, device)
-
+    net = load_iresnet_r100(weight_path)
+    logging.info(f"[{model_name}] extracting train embeddings ...")
+    Xtr, ytr, _, _ = compute_embeddings(net, train_loader)
+    logging.info(f"[{model_name}] extracting test embeddings ...")
+    Xte, yte, te_names, te_paths = compute_embeddings(net, test_loader)
     if Xtr.shape[0] == 0 or Xte.shape[0] == 0:
         return {"model": model_name, "error": "no embeddings (face detection may have failed)"}
 
-    # classifier: Logistic Regression on normalized embeddings
-    clf = LogisticRegression(max_iter=2000, solver="liblinear", multi_class="ovr", n_jobs=1)
-    clf.fit(Xtr, ytr)
-    ypred = clf.predict(Xte)
-    yprob = None
-    try:
-        yprob = clf.predict_proba(Xte).max(axis=1)
-    except Exception:
-        pass
+    n_classes = len(enc.classes_)
 
-    # metrics (sklearn = standardized)
-    acc = accuracy_score(yte, ypred)
-    prec_w, rec_w, f1_w, _ = precision_recall_fscore_support(yte, ypred, average="weighted", zero_division=0)
-    prec_m, rec_m, f1_m, _ = precision_recall_fscore_support(yte, ypred, average="macro", zero_division=0)
-    cls_report = classification_report(yte, ypred, target_names=list(enc.classes_), output_dict=True, zero_division=0)
-    cm = confusion_matrix(yte, ypred)
+    # Prototype classifier (per-class mean)
+    protos = cosine_prototypes(Xtr, ytr, n_classes)
+    ypred_p, conf_p = predict_by_prototypes(Xte, protos)
 
-    # detailed CSV
-    pred_names = enc.inverse_transform(ypred)
+    # 1-NN cosine for reference
+    ypred_nn, conf_nn = predict_by_1nn(Xtr, ytr, Xte)
+
+    # --- Metrics for prototype classifier (standardized via sklearn) ---
+    acc = accuracy_score(yte, ypred_p)
+    prec_w, rec_w, f1_w, _ = precision_recall_fscore_support(yte, ypred_p, average="weighted", zero_division=0)
+    prec_m, rec_m, f1_m, _ = precision_recall_fscore_support(yte, ypred_p, average="macro", zero_division=0)
+    cls_report = classification_report(yte, ypred_p, target_names=list(enc.classes_), output_dict=True, zero_division=0)
+    cm = confusion_matrix(yte, ypred_p)
+
+    # Save detailed CSVs
+    pred_names_p = enc.inverse_transform(ypred_p)
     true_names = enc.inverse_transform(yte)
     df = pd.DataFrame({
-        "image_path": [os.path.basename(p) for p in te_paths],
+        "image_path": [p.split("/")[-1] for p in te_paths],
         "true_celebrity": true_names,
-        "predicted_celebrity": pred_names,
-        "confidence": (yprob.tolist() if yprob is not None else [np.nan]*len(ypred)),
-        "correct": (ypred == yte),
-        "model": model_name
-    })
-    out_csv = os.path.join(RESULTS_DIR, f"{model_name}_detailed_results.csv")
-    df.to_csv(out_csv, index=False)
-
-    # per-celebrity summary
-    celeb = df.groupby("true_celebrity").agg(correct_count=("correct","sum"),
-                                             total_count=("correct","count"),
-                                             avg_confidence=("confidence","mean"))
-    celeb["accuracy"] = 100 * celeb["correct_count"] / celeb["total_count"]
-    celeb.to_csv(os.path.join(RESULTS_DIR, f"{model_name}_celebrity_metrics.csv"))
-
-    return {
-        "model": model_name,
-        "overall_accuracy": 100*acc,
-        "precision_weighted": 100*prec_w,
-        "recall_weighted": 100*rec_w,
-        "f1_weighted": 100*f1_w,
-        "precision_macro": 100*prec_m,
-        "recall_macro": 100*rec_m,
-        "f1_macro": 100*f1_m,
-        "confusion_matrix": cm,
-        "classification_report": cls_report,
-        "total_test_images": int(len(df)),
-        "results_csv": out_csv
-    }
-
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    log.info(f"Using device: {device}")
-    log.info(f"Dataset: {DATASET_DIR}")
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-
-    # shared splits + encoder
-    TRAIN_SPLIT, TEST_SPLIT, ENCODER = build_splits()
-
-    all_metrics = []
-    for model_name, fname in MODEL_FILES.items():
-        log.info(f"=== Evaluating {model_name} ===")
-        m = evaluate_one_model(model_name, fname, device, ENCODER)
-        if "error" in m:
-            log.warning(f"{model_name} skipped: {m['error']}")
-        else:
-            log.info(f"{model_name}: Acc={m['overall_accuracy']:.1f}%  F1(macro)={m['f1_macro']:.1f}%  "
-                     f"F1(weighted)={m['f1_weighted']:.1f}%  N={m['total_test_images']}")
-        all_metrics.append(m)
-
-    # summary
-    summary = pd.DataFrame(all_metrics)
-    summary_ok = summary[~summary["overall_accuracy"].isna()].sort_values("overall_accuracy", ascending=False)
-    summary.to_csv(os.path.join(RESULTS_DIR, "comprehensive_summary.csv"), index=False)
-
-    # pretty print
-    log.info("\n================ FINAL EVALUATION SUMMARY ================\n")
-    for i, row in summary_ok.reset_index(drop=True).iterrows():
-        log.info(f"{i+1:>2}. {row['model']:<16} Acc {row['overall_accuracy']:5.1f}% | "
-                 f"F1w {row['f1_weighted']:5.1f}% | F1m {row['f1_macro']:5.1f}% | N={int(row['total_test_images'])}")
-    log.info(f"\nCSV saved to: {RESULTS_DIR}")
+        "predicted_celebrity": pred_names_p,
+        "confidence": conf_p,

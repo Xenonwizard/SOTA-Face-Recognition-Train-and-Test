@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 # ---- paths ----
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = CURRENT_DIR  # code sits inside the cloned repo folder per your screenshot
-DATASET_DIR = os.path.join("..","..,",REPO_DIR, "celeb-dataset")
+DATASET_DIR = os.path.join(REPO_DIR, "celeb-dataset")
 RESULTS_DIR = os.path.join(REPO_DIR, "elifiles", time.strftime("%y%m%d"))
 os.makedirs(RESULTS_DIR, exist_ok=True)
 

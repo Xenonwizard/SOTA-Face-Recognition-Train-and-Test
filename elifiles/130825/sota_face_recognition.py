@@ -38,13 +38,13 @@ logging.info(f"DATASET_DIR exists? {DATASET_DIR.exists()}")
 
 MODEL_FILES: Dict[str, str] = {
     # keep only the ones you actually have; others will be skipped gracefully
-    "ArcFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/arcface-r100-ms1mv2.pth",
-    "CurricularFace": "/home/ssm-user/SOTA-FR-train-and-test/model/curricularface-r100-ms1mv2.pth",
-    "MagFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/magface-r100-ms1mv2.pth",
-    "AdaFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/adaface-r100-ms1mv2.pth",
-    "CosFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/cosface-r100-ms1mv2.pth",
-    "SphereFace":     "/home/ssm-user/SOTA-FR-train-and-test/model/sphereface-r100-ms1mv2.pth",
-    "UniFace":        "/home/ssm-user/SOTA-FR-train-and-test/model/uniface-r100-ms1mv2.pth",
+   "ArcFace":        ROOT / "model" / "arcface-r100-ms1mv2.pth",
+    "CurricularFace": ROOT / "model" / "curricularface-r100-ms1mv2.pth",
+    "MagFace":        ROOT / "model" / "magface-r100-ms1mv2.pth",
+    "AdaFace":        ROOT / "model" / "adaface-r100-ms1mv2.pth",
+    "CosFace":        ROOT / "model" / "cosface-r100-ms1mv2.pth",
+    "SphereFace":     ROOT / "model" / "sphereface-r100-ms1mv2.pth",
+    "UniFace":        ROOT / "model" / "uniface-r100-ms1mv2.pth",
 }
 
 # -------------------- LOGGING --------------------

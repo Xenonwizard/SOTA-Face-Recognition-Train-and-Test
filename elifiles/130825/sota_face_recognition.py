@@ -5,8 +5,8 @@
 import sys, glob, logging, warnings
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
-
-
+import glob
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -26,11 +26,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]  # -> <repo>
 sys.path.insert(0, str(ROOT))
 
-# -------------------- HARD-CODED PATHS --------------------
-REPO_DIR     = "/home/ssm-user/SOTA-FR-train-and-test"
-DATASET_DIR  = "/home/ssm-user/SOTA-FR-train-and-test/celeb-dataset"
-MODEL_DIR    = "/home/ssm-user/SOTA-FR-train-and-test/model"
-RESULTS_DIR  = "/home/ssm-user/SOTA-FR-train-and-test/elifiles/130825"
+# Directories derived from ROOT (no hardcoding, no case issues)
+REPO_DIR    = ROOT
+DATASET_DIR = ROOT / "celeb-dataset"
+MODEL_DIR   = ROOT / "model"
+RESULTS_DIR = ROOT / "elifiles" / "130825"
+
+# (Optional) log what we resolved
+logging.info(f"ROOT={ROOT}")
+logging.info(f"DATASET_DIR exists? {DATASET_DIR.exists()}")
 
 MODEL_FILES: Dict[str, str] = {
     # keep only the ones you actually have; others will be skipped gracefully
@@ -80,22 +84,33 @@ mtcnn = MTCNN(image_size=112, margin=20, post_process=True, device=str(DEVICE))
 NORM = transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 
 # -------------------- DATA --------------------
-def list_images(root: str, is_training: bool) -> List[Tuple[str, str]]:
+IMG_EXTS = (".jpg", ".jpeg", ".png", ".bmp", ".webp")
+
+def list_images(root: Path, is_training: bool) -> List[Tuple[str, str]]:
+    """
+    Walk celeb-dataset/<ethnicity>/<class or class_test>/** and collect images.
+    For training split, skip folders whose *final* name ends with '_test';
+    for test split, keep only those.
+    """
     out: List[Tuple[str,str]] = []
     ethnicities = ["caucasian", "chinese", "indian", "malay"]
     for eth in ethnicities:
-        class_dirs = glob.glob(f"{root}/{eth}/*/")
-        for cdir in class_dirs:
-            cname = cdir.rstrip("/").split("/")[-1]
-            is_test = cname.endswith("_test")
-            if is_training and is_test:
+        eth_dir = root / eth
+        if not eth_dir.is_dir():
+            continue
+        # class dirs are immediate children of each ethnicity
+        for cls_dir in sorted([p for p in eth_dir.iterdir() if p.is_dir()]):
+            cname = cls_dir.name
+            is_test_dir = cname.endswith("_test")
+            if is_training and is_test_dir:
                 continue
-            if (not is_training) and (not is_test):
+            if (not is_training) and (not is_test_dir):
                 continue
             cname_clean = cname.replace("_test", "")
-            for ext in ("*.jpg","*.jpeg","*.png","*.bmp","*.webp"):
-                for p in glob.glob(f"{cdir}{ext}"):
-                    out.append((p, cname_clean))
+            # grab images at any depth under this class folder
+            for p in cls_dir.rglob("*"):
+                if p.is_file() and p.suffix.lower() in IMG_EXTS:
+                    out.append((str(p), cname_clean))
     return out
 
 def crop_face(img_path: str):

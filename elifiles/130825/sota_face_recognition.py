@@ -6,6 +6,7 @@ import sys, glob, logging, warnings
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 
+
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -16,6 +17,14 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import (accuracy_score, precision_recall_fscore_support,
                              classification_report, confusion_matrix)
+
+# Make repo root importable regardless of where this script is run from
+import sys
+from pathlib import Path
+
+# this file lives at <repo>/elifiles/130825/sota_face_recognition.py
+ROOT = Path(__file__).resolve().parents[2]  # -> <repo>
+sys.path.insert(0, str(ROOT))
 
 # -------------------- HARD-CODED PATHS --------------------
 REPO_DIR     = "/home/ssm-user/SOTA-FR-train-and-test"
@@ -40,9 +49,22 @@ log = logging.getLogger("cosine_iresnet")
 warnings.filterwarnings("ignore")
 
 # -------------------- IMPORT REPO BACKBONE --------------------
-sys.path.append(REPO_DIR)
+from model.iresnet import iresnet as iresnet_factory
 
-from model.iresnet import iresnet
+# -------------------- BACKBONE LOADER --------------------
+def load_iresnet_r100(weight_path: str) -> nn.Module:
+    # iresnet.py exposes a generic factory, not iresnet100()
+    net = iresnet_factory("100", num_features=512)  # 512-d embeddings
+    state = torch.load(weight_path, map_location="cpu")
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
+    state = {k.replace("module.", ""): v for k, v in state.items()}
+    missing, unexpected = net.load_state_dict(state, strict=False)
+    log.info(f"Loaded {weight_path}: missing={len(missing)} unexpected={len(unexpected)}")
+    net.fc = nn.Identity()  # remove classifier head; keep 512-d features
+    net = net.to(DEVICE).eval()
+    return net
+
 
 
 # -------------------- FACE DETECTOR (MTCNN) --------------------

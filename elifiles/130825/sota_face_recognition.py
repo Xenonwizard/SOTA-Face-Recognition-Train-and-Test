@@ -173,7 +173,7 @@ def load_iresnet_r100(weight_path: str) -> nn.Module:
     state = {k.replace("module.", ""): v for k, v in state.items()}
     missing, unexpected = net.load_state_dict(state, strict=False)
     log.info(f"Loaded {weight_path}: missing={len(missing)} unexpected={len(unexpected)}")
-    net.fc = nn.Identity()
+    # net.fc = nn.Identity()
     net = net.to(DEVICE).eval()
     return net
 

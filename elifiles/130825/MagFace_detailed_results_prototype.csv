@@ -1,0 +1,189 @@
+image_path,true_celebrity,predicted_celebrity,confidence,correct,model,classifier
+henry_golding2.jpg,henrygolding,irrfankhan,0.8270197,False,MagFace,prototype
+"1200px-Carmen_Roberts_and_Henry_Golding,_Presenters,_The_Travel_Show,_BBC_(cropped).jpg",henrygolding,henrygolding,0.69050443,True,MagFace,prototype
+images (14).jpeg,henrygolding,ronnychieng,0.86021686,False,MagFace,prototype
+images (94).jpeg,henrygolding,henrygolding,0.4698622,True,MagFace,prototype
+images - 2025-07-22T154439.130.jpeg,henrygolding,henrygolding,0.79388106,True,MagFace,prototype
+henrygolding.jpg,henrygolding,henrygolding,0.70516837,True,MagFace,prototype
+download (5).jpeg,henrygolding,irrfankhan,0.8656918,False,MagFace,prototype
+images - 2025-07-22T154439.413.jpeg,henrygolding,henrygolding,0.7523273,True,MagFace,prototype
+images - 2025-07-22T154439.547.jpeg,henrygolding,irrfankhan,0.67675805,False,MagFace,prototype
+images - 2025-07-22T154439.383.jpeg,henrygolding,ronnychieng,0.7524442,False,MagFace,prototype
+download (18).jpeg,henrygolding,henrygolding,0.7404216,True,MagFace,prototype
+images - 2025-07-22T154439.072.jpeg,henrygolding,henrygolding,0.78110373,True,MagFace,prototype
+images - 2025-07-22T154439.226.jpeg,henrygolding,henrygolding,0.5340693,True,MagFace,prototype
+rs_1200x1200-220309073150-1200-henry-golding-for-david-yurman-gj.jpg,henrygolding,priyankachopra,0.81649613,False,MagFace,prototype
+HenryGoldingCrazyRichAsians.jpg,henrygolding,henrygolding,0.7676207,True,MagFace,prototype
+images - 2025-07-22T154439.359.jpeg,henrygolding,henrygolding,0.83326435,True,MagFace,prototype
+download (9).jpeg,henrygolding,yangmi,0.7142706,False,MagFace,prototype
+_103395645_warnerbros_cra-01079.jpg,henrygolding,aaronaziz,0.7656107,False,MagFace,prototype
+Henry_Golding_at_the_2024_Toronto_International_Film_Festival_(Cropped).jpg,henrygolding,irrfankhan,0.8736625,False,MagFace,prototype
+download (11).jpeg,henrygolding,henrygolding,0.8426386,True,MagFace,prototype
+images - 2025-07-22T154439.529.jpeg,henrygolding,henrygolding,0.7177651,True,MagFace,prototype
+images (59).jpeg,henrygolding,henrygolding,0.76288325,True,MagFace,prototype
+images - 2025-07-22T154439.198.jpeg,henrygolding,henrygolding,0.80668616,True,MagFace,prototype
+images (94).jpeg,urassayasperbund,urassayasperbund,0.8544643,True,MagFace,prototype
+images - 2025-07-22T160915.784.jpeg,urassayasperbund,priyankachopra,0.7637954,False,MagFace,prototype
+cac-tap-phim-co-su-tham-gia-cua-urassaya-sperbund-thumbail.jpg,urassayasperbund,irrfankhan,0.7805627,False,MagFace,prototype
+images - 2025-07-22T160915.516.jpeg,urassayasperbund,sitinurhaliza,0.7374442,False,MagFace,prototype
+images - 2025-07-22T160915.524.jpeg,urassayasperbund,urassayasperbund,0.7142221,True,MagFace,prototype
+images (83).jpeg,urassayasperbund,urassayasperbund,0.6357807,True,MagFace,prototype
+images (82).jpeg,urassayasperbund,gongli,0.6746846,False,MagFace,prototype
+images - 2025-07-22T160916.133.jpeg,urassayasperbund,yangmi,0.86451524,False,MagFace,prototype
+images - 2025-07-22T160915.486.jpeg,urassayasperbund,gongli,0.6422308,False,MagFace,prototype
+download (16).jpeg,urassayasperbund,priyankachopra,0.8378232,False,MagFace,prototype
+download (21).jpeg,urassayasperbund,henrygolding,0.5739734,False,MagFace,prototype
+images - 2025-07-22T160916.128.jpeg,urassayasperbund,urassayasperbund,0.85680956,True,MagFace,prototype
+download (14).jpeg,urassayasperbund,priyankachopra,0.8287761,False,MagFace,prototype
+images (26).jpeg,urassayasperbund,sitinurhaliza,0.6859487,False,MagFace,prototype
+download (26).jpeg,urassayasperbund,yangmi,0.78981465,False,MagFace,prototype
+2849b192-75db-43b7-9e73-7bbc0697c5cd_11.jpeg,urassayasperbund,sitinurhaliza,0.66588145,False,MagFace,prototype
+images - 2025-07-22T160915.845.jpeg,urassayasperbund,urassayasperbund,0.7750268,True,MagFace,prototype
+urassaya-sperbund-d39bf871-90d2-4bc5-bfb2-c82f127de37-resize-750.jpeg,urassayasperbund,urassayasperbund,0.85724294,True,MagFace,prototype
+urassaya-sperbund-attends-the-louis-vuitton-fallwinter-2023-2024-ready-to-wear-collection-presented-monday-march-6-2023-in-paris-vianney-le-caerinvisionap-2P51JY8.jpg,urassayasperbund,henrygolding,0.8341059,False,MagFace,prototype
+images - 2025-07-22T155411.111.jpeg,gongli,yangmi,0.7636103,False,MagFace,prototype
+images - 2025-07-22T155411.098.jpeg,gongli,gongli,0.7669352,True,MagFace,prototype
+images (27).jpeg,gongli,gongli,0.50557125,True,MagFace,prototype
+GONG-LI_Head-of-Jury-for-the-55th-GHA-e1531859364238.jpg,gongli,gongli,0.7197999,True,MagFace,prototype
+images - 2025-07-22T155411.125.jpeg,gongli,gongli,0.7882115,True,MagFace,prototype
+images - 2025-07-22T155411.288.jpeg,gongli,yangmi,0.85200465,False,MagFace,prototype
+hq720.jpg,gongli,yangmi,0.86103266,False,MagFace,prototype
+images - 2025-07-22T155411.116.jpeg,gongli,priyankachopra,0.8208213,False,MagFace,prototype
+images - 2025-07-22T155411.131.jpeg,gongli,gongli,0.76742804,True,MagFace,prototype
+download (7).jpeg,gongli,ronnychieng,0.77223516,False,MagFace,prototype
+250px-Gong_Li_Cannes_2011.jpg,gongli,gongli,0.75526655,True,MagFace,prototype
+images (6).jpeg,gongli,gongli,0.5940271,True,MagFace,prototype
+download (11).jpeg,gongli,urassayasperbund,0.714123,False,MagFace,prototype
+images (37).jpeg,gongli,henrygolding,0.8100922,False,MagFace,prototype
+001ec9790963150dec6d00.jpg,gongli,gongli,0.44727418,True,MagFace,prototype
+images - 2025-07-22T155411.369.jpeg,gongli,priyankachopra,0.86499673,False,MagFace,prototype
+images (20).jpeg,ronnychieng,priyankachopra,0.70677686,False,MagFace,prototype
+images - 2025-07-22T154841.136.jpeg,ronnychieng,priyankachopra,0.7990664,False,MagFace,prototype
+images (7).jpeg,ronnychieng,ronnychieng,0.59498024,True,MagFace,prototype
+images (43).jpeg,ronnychieng,aaronaziz,0.62796044,False,MagFace,prototype
+ronny-chieng-martial-arts-comedy-film-project-696x442.jpg,ronnychieng,ronnychieng,0.43893617,True,MagFace,prototype
+images - 2025-07-22T154841.130.jpeg,ronnychieng,ronnychieng,0.48923838,True,MagFace,prototype
+images (38).jpeg,ronnychieng,ronnychieng,0.69353974,True,MagFace,prototype
+images (15).jpeg,ronnychieng,henrygolding,0.7938152,False,MagFace,prototype
+download (5).jpeg,ronnychieng,ronnychieng,0.4758147,True,MagFace,prototype
+images - 2025-07-22T154841.440.jpeg,ronnychieng,ronnychieng,0.46024573,True,MagFace,prototype
+images (96).jpeg,ronnychieng,ronnychieng,0.75545853,True,MagFace,prototype
+Ronny-Chieng-1.jpg,ronnychieng,ronnychieng,0.34274453,True,MagFace,prototype
+maxresdefault (1).jpg,ronnychieng,ronnychieng,0.81574035,True,MagFace,prototype
+images (70).jpeg,ronnychieng,ronnychieng,0.8322591,True,MagFace,prototype
+download (9).jpeg,ronnychieng,henrygolding,0.7738073,False,MagFace,prototype
+images (89).jpeg,ronnychieng,aaronaziz,0.70333326,False,MagFace,prototype
+images - 2025-07-22T154841.120.jpeg,ronnychieng,ronnychieng,0.77005064,True,MagFace,prototype
+images - 2025-07-22T154841.350.jpeg,ronnychieng,aaronaziz,0.7463052,False,MagFace,prototype
+images - 2025-07-22T165147.336.jpeg,yangmi,yangmi,0.88826174,True,MagFace,prototype
+images - 2025-07-22T165147.948.jpeg,yangmi,yangmi,0.8678275,True,MagFace,prototype
+download (6).jpeg,yangmi,sitinurhaliza,0.76518863,False,MagFace,prototype
+images - 2025-07-22T165147.444.jpeg,yangmi,yangmi,0.82247436,True,MagFace,prototype
+images (87).jpeg,yangmi,yangmi,0.8532575,True,MagFace,prototype
+download (10).jpeg,yangmi,yangmi,0.821699,True,MagFace,prototype
+download (22).jpeg,yangmi,sitinurhaliza,0.62655085,False,MagFace,prototype
+images - 2025-07-22T165147.029.jpeg,yangmi,yangmi,0.82464516,True,MagFace,prototype
+images (33).jpeg,yangmi,yangmi,0.6993933,True,MagFace,prototype
+images - 2025-07-22T165147.932.jpeg,yangmi,yangmi,0.79481375,True,MagFace,prototype
+images - 2025-07-22T165147.196.jpeg,yangmi,gongli,0.6943442,False,MagFace,prototype
+images - 2025-07-22T165147.907.jpeg,yangmi,gongli,0.3750924,False,MagFace,prototype
+images - 2025-07-22T165147.146.jpeg,yangmi,sitinurhaliza,0.79788315,False,MagFace,prototype
+images - 2025-07-22T165147.060.jpeg,yangmi,priyankachopra,0.73554045,False,MagFace,prototype
+images - 2025-07-22T165147.239.jpeg,yangmi,gongli,0.48682097,False,MagFace,prototype
+images - 2025-07-22T165147.911.jpeg,yangmi,priyankachopra,0.85632324,False,MagFace,prototype
+images - 2025-07-22T165147.205.jpeg,yangmi,yangmi,0.81073254,True,MagFace,prototype
+images - 2025-07-22T165147.145.jpeg,yangmi,gongli,0.7332792,False,MagFace,prototype
+download (9).jpeg,yangmi,yangmi,0.8069365,True,MagFace,prototype
+09ca4912922019f7ac585b75c65fa134.jpg,yangmi,yangmi,0.7940241,True,MagFace,prototype
+download (20).jpeg,yangmi,sitinurhaliza,0.7245134,False,MagFace,prototype
+images (2).jpeg,yangmi,yangmi,0.88115966,True,MagFace,prototype
+images - 2025-07-22T165146.881.jpeg,yangmi,priyankachopra,0.7613324,False,MagFace,prototype
+images (93).jpeg,yangmi,aaronaziz,0.46620542,False,MagFace,prototype
+images (60).jpeg,yangmi,yangmi,0.71458864,True,MagFace,prototype
+images - 2025-07-22T165146.930.jpeg,yangmi,irrfankhan,0.8691089,False,MagFace,prototype
+images - 2025-07-22T160126.925.jpeg,irrfankhan,irrfankhan,0.68036723,True,MagFace,prototype
+images - 2025-07-22T160126.586.jpeg,irrfankhan,irrfankhan,0.86206144,True,MagFace,prototype
+images - 2025-07-22T160126.815.jpeg,irrfankhan,henrygolding,0.5298989,False,MagFace,prototype
+images - 2025-07-22T160126.892.jpeg,irrfankhan,irrfankhan,0.7487462,True,MagFace,prototype
+Irrfan-Khan-1-2024-04-c1507bcf500dd70d642d0b363464406b.jpg,irrfankhan,yangmi,0.6723647,False,MagFace,prototype
+download (22).jpeg,irrfankhan,irrfankhan,0.8229986,True,MagFace,prototype
+images - 2025-07-22T160127.114.jpeg,irrfankhan,irrfankhan,0.76405203,True,MagFace,prototype
+images - 2025-07-22T160126.752.jpeg,irrfankhan,irrfankhan,0.827211,True,MagFace,prototype
+maxresdefault.jpg,irrfankhan,irrfankhan,0.6883159,True,MagFace,prototype
+irrfan-khan-dead.jpg,irrfankhan,irrfankhan,0.7966243,True,MagFace,prototype
+images - 2025-07-22T160126.988.jpeg,irrfankhan,priyankachopra,0.7308556,False,MagFace,prototype
+d1d32f46d80205a1a504580779c886bc.jpg,irrfankhan,henrygolding,0.7759695,False,MagFace,prototype
+images - 2025-07-22T160126.917.jpeg,irrfankhan,ronnychieng,0.7213601,False,MagFace,prototype
+images (1).jpeg,irrfankhan,irrfankhan,0.83664155,True,MagFace,prototype
+irrfan-khan_640x480_81495104135.jpg,irrfankhan,priyankachopra,0.50722855,False,MagFace,prototype
+images - 2025-07-22T160126.921.jpeg,irrfankhan,irrfankhan,0.81322813,True,MagFace,prototype
+images (24).jpeg,irrfankhan,irrfankhan,0.78974414,True,MagFace,prototype
+images - 2025-07-22T160126.916.jpeg,irrfankhan,irrfankhan,0.8224264,True,MagFace,prototype
+Irrfan_Khan_May_2015_(cropped).jpg,irrfankhan,henrygolding,0.84149426,False,MagFace,prototype
+images - 2025-07-22T160126.816.jpeg,irrfankhan,ronnychieng,0.725221,False,MagFace,prototype
+images (75).jpeg,irrfankhan,henrygolding,0.73266757,False,MagFace,prototype
+images - 2025-07-22T160420.760.jpeg,priyankachopra,priyankachopra,0.82665753,True,MagFace,prototype
+images - 2025-07-22T160420.982.jpeg,priyankachopra,priyankachopra,0.89405465,True,MagFace,prototype
+images (47).jpeg,priyankachopra,priyankachopra,0.8365907,True,MagFace,prototype
+download (6).jpeg,priyankachopra,priyankachopra,0.70624435,True,MagFace,prototype
+images - 2025-07-22T160420.629.jpeg,priyankachopra,priyankachopra,0.8440958,True,MagFace,prototype
+images (3).jpeg,priyankachopra,priyankachopra,0.79659176,True,MagFace,prototype
+images (85).jpeg,priyankachopra,priyankachopra,0.79950243,True,MagFace,prototype
+images - 2025-07-22T160420.370.jpeg,priyankachopra,aaronaziz,0.838757,False,MagFace,prototype
+dd259ba8-c64c-11ea-86df-6d561651b5f4_image_hires_182236.jpg,priyankachopra,priyankachopra,0.8514209,True,MagFace,prototype
+images (15).jpeg,priyankachopra,urassayasperbund,0.80126774,False,MagFace,prototype
+images (82).jpeg,priyankachopra,irrfankhan,0.8017283,False,MagFace,prototype
+download (17).jpeg,priyankachopra,priyankachopra,0.82255685,True,MagFace,prototype
+images - 2025-07-22T160420.614.jpeg,priyankachopra,priyankachopra,0.87415636,True,MagFace,prototype
+download (16).jpeg,priyankachopra,priyankachopra,0.9019433,True,MagFace,prototype
+images - 2025-07-22T160420.770.jpeg,priyankachopra,sitinurhaliza,0.78759617,False,MagFace,prototype
+images (32).jpeg,priyankachopra,priyankachopra,0.87194777,True,MagFace,prototype
+Priyanka-Chopra-on-straddling-Bollywood-and-Hollywood-To-be-able-to-work-in-two-of-the-largest-film-industries-in-the-world….jpg,priyankachopra,priyankachopra,0.832456,True,MagFace,prototype
+images - 2025-07-22T160420.627.jpeg,priyankachopra,priyankachopra,0.90708447,True,MagFace,prototype
+images (37).jpeg,priyankachopra,henrygolding,0.60149926,False,MagFace,prototype
+images (60).jpeg,priyankachopra,priyankachopra,0.8383012,True,MagFace,prototype
+images (8).jpeg,priyankachopra,priyankachopra,0.8356328,True,MagFace,prototype
+images - 2025-07-22T160420.759.jpeg,priyankachopra,priyankachopra,0.8308348,True,MagFace,prototype
+download (13).jpeg,aaronaziz,aaronaziz,0.6352689,True,MagFace,prototype
+aziz-aaron-image.jpg,aaronaziz,urassayasperbund,0.8148543,False,MagFace,prototype
+aaron-filem.jpg,aaronaziz,aaronaziz,0.652309,True,MagFace,prototype
+Untitled-design-21-300x300.jpg,aaronaziz,irrfankhan,0.8276046,False,MagFace,prototype
+images - 2025-07-22T161522.018.jpeg,aaronaziz,aaronaziz,0.7693365,True,MagFace,prototype
+images - 2025-07-22T161522.122.jpeg,aaronaziz,henrygolding,0.6832541,False,MagFace,prototype
+images - 2025-07-22T161521.796.jpeg,aaronaziz,aaronaziz,0.6367949,True,MagFace,prototype
+7n_aaronazizused00.jpg,aaronaziz,irrfankhan,0.7790364,False,MagFace,prototype
+images - 2025-07-22T161521.865.jpeg,aaronaziz,urassayasperbund,0.74908435,False,MagFace,prototype
+dc-Cover-lgsc3nse3kkcoi86401hlcj8e6-20170308230122.Medi.jpeg,aaronaziz,aaronaziz,0.38639733,True,MagFace,prototype
+images - 2025-07-22T161521.842.jpeg,aaronaziz,yangmi,0.81861687,False,MagFace,prototype
+download (7).jpeg,aaronaziz,aaronaziz,0.62518287,True,MagFace,prototype
+images (18).jpeg,aaronaziz,aaronaziz,0.29269683,True,MagFace,prototype
+download (11).jpeg,aaronaziz,aaronaziz,0.37308985,True,MagFace,prototype
+images (4).jpeg,aaronaziz,irrfankhan,0.83201736,False,MagFace,prototype
+images - 2025-07-22T161521.927.jpeg,aaronaziz,aaronaziz,0.6313065,True,MagFace,prototype
+images - 2025-07-22T161521.811.jpeg,aaronaziz,yangmi,0.7675899,False,MagFace,prototype
+download (12).jpeg,aaronaziz,urassayasperbund,0.78056073,False,MagFace,prototype
+images (28).jpeg,aaronaziz,gongli,0.42367566,False,MagFace,prototype
+images (48).jpeg,aaronaziz,ronnychieng,0.5740174,False,MagFace,prototype
+images - 2025-07-22T161522.164.jpeg,aaronaziz,henrygolding,0.32586467,False,MagFace,prototype
+2025 July26 Dato' Sri Siti Nurhaliza Live In Singapore@SISTIC-Event Main Images (mobile) 1146x1146 - Resize.jpg,sitinurhaliza,sitinurhaliza,0.7317051,True,MagFace,prototype
+images - 2025-07-22T152914.087.jpeg,sitinurhaliza,priyankachopra,0.88202214,False,MagFace,prototype
+images - 2025-07-22T152914.052.jpeg,sitinurhaliza,priyankachopra,0.8872168,False,MagFace,prototype
+images (3).jpeg,sitinurhaliza,sitinurhaliza,0.7145844,True,MagFace,prototype
+olsschlwnss001a.jpg_1731982121.jpg,sitinurhaliza,sitinurhaliza,0.7161945,True,MagFace,prototype
+images - 2025-07-22T152915.218.jpeg,sitinurhaliza,priyankachopra,0.5716349,False,MagFace,prototype
+images - 2025-07-22T152915.213.jpeg,sitinurhaliza,sitinurhaliza,0.8481165,True,MagFace,prototype
+images (33).jpeg,sitinurhaliza,sitinurhaliza,0.78309137,True,MagFace,prototype
+images (61).jpeg,sitinurhaliza,sitinurhaliza,0.8551976,True,MagFace,prototype
+content_siti-nurhaliza-ozasia.jpg,sitinurhaliza,sitinurhaliza,0.68096244,True,MagFace,prototype
+images - 2025-07-22T152915.227.jpeg,sitinurhaliza,sitinurhaliza,0.7685969,True,MagFace,prototype
+images - 2025-07-22T152915.228.jpeg,sitinurhaliza,sitinurhaliza,0.85176647,True,MagFace,prototype
+247094.jpg,sitinurhaliza,sitinurhaliza,0.78718644,True,MagFace,prototype
+siti0623_1194x556New.jpg,sitinurhaliza,sitinurhaliza,0.864018,True,MagFace,prototype
+download (21).jpeg,sitinurhaliza,sitinurhaliza,0.6797161,True,MagFace,prototype
+images - 2025-07-22T152913.409.jpeg,sitinurhaliza,sitinurhaliza,0.8464718,True,MagFace,prototype
+350px-Siti_Nurhaliza_-_Dato'_Siti_Nurhaliza_&_Friends'_Artists_(cropped_2).jpg,sitinurhaliza,sitinurhaliza,0.8155888,True,MagFace,prototype
+2415849.jpeg,sitinurhaliza,sitinurhaliza,0.7625494,True,MagFace,prototype
+images - 2025-07-22T152913.578.jpeg,sitinurhaliza,gongli,0.21703872,False,MagFace,prototype
+b5e7b8613897ee1cfb01d0a120b9f2af.jpg,sitinurhaliza,sitinurhaliza,0.8491778,True,MagFace,prototype
+1900x1900-000000-80-0-0.jpg,sitinurhaliza,yangmi,0.851745,False,MagFace,prototype
+Siti_Nurhaliza_Performing_Memories_-_Dato'_Siti_Nurhaliza_&_Friends_(cropped_2).jpg,sitinurhaliza,sitinurhaliza,0.85081804,True,MagFace,prototype

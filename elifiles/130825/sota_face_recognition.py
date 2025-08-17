@@ -325,18 +325,40 @@ if __name__ == "__main__":
                          f"N={m['total_test_images']}")
 
     summary = pd.DataFrame(all_metrics)
-    try:
-        summary_ok = summary[summary["overall_accuracy"].notna()].sort_values("overall_accuracy", ascending=False)
-    except Exception:
-        summary_ok = summary
+    # Ensure metric columns exist even if no model produced them
+    metric_cols = ["overall_accuracy", "f1_weighted", "f1_macro", "total_test_images"]
+    for c in metric_cols:
+        if c not in summary.columns:
+            summary[c] = np.nan
+
     summary.to_csv(f"{RESULTS_DIR}/comprehensive_summary_cosine.csv", index=False)
 
     logging.info("\n================ FINAL EVALUATION SUMMARY (Cosine) ================\n")
-    if len(summary_ok) > 0:
-        for i, row in summary_ok.reset_index(drop=True).iterrows():
-            logging.info(f"{i+1:>2}. {row['model']:<16} Acc {row['overall_accuracy']:5.1f}% | "
-                         f"F1w {row['f1_weighted']:5.1f}% | F1m {row['f1_macro']:5.1f}% | "
-                         f"N={int(row['total_test_images'])}")
+
+    has_results = summary["overall_accuracy"].notna().any()
+
+    if has_results:
+        summary_ok = (
+            summary[summary["overall_accuracy"].notna()]
+            .sort_values("overall_accuracy", ascending=False)
+            .reset_index(drop=True)
+        )
+
+        for i, row in summary_ok.iterrows():
+            acc  = row["overall_accuracy"]
+            f1w  = row["f1_weighted"]
+            f1m  = row["f1_macro"]
+            nimg = row["total_test_images"]
+
+            # print safely even if some are NaN
+            acc_s  = "nan" if pd.isna(acc) else f"{acc:5.1f}%"
+            f1w_s  = "nan" if pd.isna(f1w) else f"{f1w:5.1f}%"
+            f1m_s  = "nan" if pd.isna(f1m) else f"{f1m:5.1f}%"
+            nimg_s = "?"   if pd.isna(nimg) else f"{int(nimg)}"
+
+            logging.info(f"{i+1:>2}. {row.get('model','<?>'):<16} Acc {acc_s} | F1w {f1w_s} | F1m {f1m_s} | N={nimg_s}")
     else:
-        logging.info("No successful evaluations (check weights and detections).")
-    logging.info(f"\nCSV saved to: {RESULTS_DIR}")
+        # Nothing succeeded—print a helpful table of errors
+        logging.info("No successful evaluations. Details:")
+        logging.info("\n" + summary.to_string(index=False))
+        logging.info(f"\nCSV saved to: {RESULTS_DIR}")

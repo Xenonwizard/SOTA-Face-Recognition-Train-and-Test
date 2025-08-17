@@ -166,7 +166,7 @@ def collate_skip_none(batch):
 
 # -------------------- BACKBONE LOADER --------------------
 def load_iresnet_r100(weight_path: str) -> nn.Module:
-    net = iresnet100(num_features=512)  # 512-d embeddings
+    net = iresnet_factory("100", num_features=512)  # 512-d embeddings
     state = torch.load(weight_path, map_location="cpu")
     if isinstance(state, dict) and "state_dict" in state:
         state = state["state_dict"]

@@ -105,8 +105,8 @@ def build_splits() -> Tuple[Split, Split, LabelEncoder]:
 
 def create_image_list_file(split: Split, filename: str) -> str:
     """
-    Create a single-column CSV file of absolute paths, with ALL fields quoted.
-    This survives commas in filenames/dirs when pandas.read_csv parses it.
+    Create a single-column CSV of absolute image paths with ALL fields quoted.
+    This is robust to commas/spaces in paths when pandas.read_csv parses it.
     """
     import csv
     filepath = TEMP_DIR / filename
@@ -117,13 +117,14 @@ def create_image_list_file(split: Split, filename: str) -> str:
             f,
             delimiter=",",
             quotechar='"',
-            quoting=csv.QUOTE_ALL,   # <— quote *every* field
+            quoting=csv.QUOTE_ALL,
             lineterminator="\n",
             escapechar="\\",
         )
         for p in split.paths:
             writer.writerow([str(Path(p).resolve())])
     return str(filepath)
+
 
 # --- replace this function ---
 
@@ -132,22 +133,19 @@ def extract_features_official(model_path: str,
                               feature_output_base: str,
                               prefix: str) -> str:
     """
-    Run the official extractor and robustly find the produced .npy, regardless
-    of whether --destination is treated as a folder, a file base, or ignored.
-
-    Returns the final, normalized path to a .npy inside TEMP_DIR.
+    Run the official extractor and robustly find the produced .npy, regardless of
+    whether --destination is treated as a folder, a file base, or ignored.
+    Returns a normalized .npy path under TEMP_DIR (e.g., TEMP_DIR/<prefix>_features.npy).
     """
     try:
         out_base = Path(feature_output_base)
         out_base.parent.mkdir(parents=True, exist_ok=True)
 
-        # Snapshot existing npy files and current time
-        search_roots = [REPO_DIR, TEMP_DIR]
-        before = {p.resolve() for root in search_roots for p in root.rglob("*.npy")}
+        # Snapshot current npys & time
         import time
         start_time = time.time()
+        before = {p.resolve() for root in [REPO_DIR, TEMP_DIR] for p in root.rglob("*.npy")}
 
-        # Build command – pass destination (works for file-base or folder cases)
         cmd = [
             "python3", "./feature_extractor.py",
             "--model_path", model_path,
@@ -160,26 +158,24 @@ def extract_features_official(model_path: str,
         result = subprocess.run(cmd, cwd=".", capture_output=True, text=True, check=True)
         log.info("Feature extraction completed successfully")
 
-        # Candidates generated after start_time
+        # Find new/updated npy candidates
         candidates = []
-        for root in search_roots:
+        for root in [REPO_DIR, TEMP_DIR]:
             for p in root.rglob("*.npy"):
                 try:
                     st = p.stat()
-                    if st.st_mtime >= start_time - 1 and p.resolve() not in before:
+                    if (p.resolve() not in before) or (st.st_mtime >= start_time - 1):
                         candidates.append((st.st_mtime, st.st_size, p))
                 except FileNotFoundError:
-                    continue
+                    pass
 
-        # Extra fallbacks if extractor overwrote an existing file
-        if not candidates:
-            expected1 = out_base.with_suffix(".npy")
-            expected2 = out_base if out_base.suffix == ".npy" else None
-            for p in [expected1, expected2]:
-                if p and p.exists():
-                    st = p.stat()
-                    if st.st_mtime >= start_time - 1:
-                        candidates.append((st.st_mtime, st.st_size, p))
+        # Expected locations as fallbacks
+        exp1 = out_base.with_suffix(".npy")
+        exp2 = out_base if out_base.suffix == ".npy" else None
+        for p in [exp1, exp2]:
+            if p and p.exists():
+                st = p.stat()
+                candidates.append((st.st_mtime, st.st_size, p))
 
         if not candidates:
             log.error("No new .npy features found after extraction.")
@@ -187,115 +183,126 @@ def extract_features_official(model_path: str,
             log.error(f"STDERR: {result.stderr}")
             return None
 
-        # Prefer a file containing our prefix; otherwise newest, then largest
-        def score(t):
-            mtime, size, path = t
+        # Prefer files containing our prefix; else newest/largest
+        def score(item):
+            mtime, size, path = item
             has_prefix = 1 if prefix.lower() in path.name.lower() else 0
             return (has_prefix, mtime, size)
 
         best = sorted(candidates, key=score, reverse=True)[0][2]
 
-        # Normalize location/name
         final_path = TEMP_DIR / f"{prefix}_features.npy"
-        try:
-            if best.resolve() != final_path.resolve():
-                final_path.unlink(missing_ok=True)
-                # Move if same filesystem, else copy
-                try:
-                    best.replace(final_path)
-                except Exception:
-                    import shutil as _sh
-                    _sh.copy2(best, final_path)
-            log.info(f"Features saved to: {final_path}")
-            return str(final_path)
-        except Exception as e:
-            log.error(f"Failed to move/copy features file: {e}")
-            return str(best)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        if best.resolve() != final_path.resolve():
+            final_path.unlink(missing_ok=True)
+            try:
+                best.replace(final_path)
+            except Exception:
+                import shutil as _sh
+                _sh.copy2(best, final_path)
+
+        log.info(f"Features saved to: {final_path}")
+        return str(final_path)
 
     except subprocess.CalledProcessError as e:
         log.error(f"Feature extraction failed: {e}")
         log.error(f"STDOUT: {e.stdout}")
         log.error(f"STDERR: {e.stderr}")
         return None
-
+    
 def load_features(feature_file: str,
                   split: Split,
                   encoder: LabelEncoder) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
     """
-    Load features robustly from various formats the official extractor might write.
-    Returns (X, y, names, paths) where X is [N, D] float32 and L2-normalized.
+    Load features from many extractor variants and return:
+    X: [N, D] float32 (L2-normalized), labels, names, paths.
     """
     N_expected = len(split.paths)
+    obj = np.load(feature_file, allow_pickle=True)
 
-    # 1) Load with pickle allowed (some writers store objects/dicts)
-    feats = np.load(feature_file, allow_pickle=True)
+    # Unwrap 0-D object array (np.save(dict/list/tuple))
+    if isinstance(obj, np.ndarray) and obj.ndim == 0 and obj.dtype == object:
+        obj = obj.item()
 
-    # 2) Normalize to a [N, D] float array
     X = None
+    paths_from_file = None
 
-    # Case A: already 2D numeric
-    if isinstance(feats, np.ndarray) and feats.ndim == 2 and np.issubdtype(feats.dtype, np.number):
-        X = feats.astype(np.float32)
+    def _stack(seq):
+        return np.vstack([np.asarray(v) for v in seq]).astype(np.float32)
 
-    # Case B: 1D object array of arrays or dicts
-    elif isinstance(feats, np.ndarray) and feats.ndim == 1:
-        # Try object array of vectors
-        if feats.dtype == object:
-            first = feats[0]
-            # Object array of ndarrays
-            if isinstance(first, np.ndarray):
-                X = np.vstack([np.asarray(v) for v in feats]).astype(np.float32)
-            # Object array of dicts with a feature key
-            elif isinstance(first, dict):
-                candidate_keys = ["features", "feats", "embeddings", "em", "output", "x"]
-                key = next((k for k in candidate_keys if k in first), None)
-                if key is None:
-                    raise ValueError(f"Unrecognized dict format in {feature_file}. Keys of first item: {list(first.keys())}")
-                X = np.vstack([np.asarray(d[key]) for d in feats]).astype(np.float32)
-        # 1D numeric: maybe flattened [N*D]
-        elif np.issubdtype(feats.dtype, np.number):
-            flat = feats.astype(np.float32)
-            if N_expected > 0 and flat.size % N_expected == 0:
-                D = flat.size // N_expected
-                X = flat.reshape(N_expected, D)
+    # Dict formats
+    if isinstance(obj, dict):
+        feat_keys = ["features", "feats", "embeddings", "em", "outputs", "x"]
+        path_keys = ["paths", "image_paths", "filenames", "files"]
+        kf = next((k for k in feat_keys if k in obj), None)
+        if kf is None:
+            raise ValueError(f"Unknown feature dict format in {feature_file}. Keys={list(obj.keys())}")
+        X_raw = obj[kf]
+        if isinstance(X_raw, list):
+            X = _stack(X_raw)
+        elif isinstance(X_raw, np.ndarray):
+            if X_raw.ndim == 2:
+                X = X_raw.astype(np.float32)
+            elif X_raw.ndim == 1 and X_raw.dtype == object:
+                X = _stack(X_raw)
+            elif N_expected and X_raw.size % N_expected == 0:
+                X = X_raw.reshape(N_expected, -1).astype(np.float32)
+        kp = next((k for k in path_keys if k in obj), None)
+        if kp is not None:
+            paths_from_file = [str(p) for p in obj[kp]]
+
+    # List/tuple formats
+    elif isinstance(obj, (list, tuple)):
+        first = obj[0]
+        if isinstance(first, (list, np.ndarray)):
+            X = _stack(obj)
+        elif isinstance(first, dict):
+            feat_keys = ["features", "feats", "embeddings", "em", "outputs", "x"]
+            kf = next((k for k in feat_keys if k in first), None)
+            if kf is None:
+                raise ValueError(f"Unrecognized dict list in {feature_file}")
+            X = _stack([o[kf] for o in obj])
+
+    # 2-D numeric
+    elif isinstance(obj, np.ndarray) and obj.ndim == 2 and np.issubdtype(obj.dtype, np.number):
+        X = obj.astype(np.float32)
+
+    # 1-D variants
+    elif isinstance(obj, np.ndarray) and obj.ndim == 1:
+        if obj.dtype == object:
+            X = _stack(obj)
+        elif np.issubdtype(obj.dtype, np.number):
+            flat = obj.astype(np.float32)
+            if N_expected and flat.size % N_expected == 0:
+                X = flat.reshape(N_expected, -1)
             else:
-                # Could be a single vector
                 X = flat.reshape(1, -1)
 
-    # Case C: plain 1D Python list was saved
-    if X is None and isinstance(feats, list):
-        if len(feats) == 0:
-            raise ValueError(f"No features found in {feature_file}")
-        if isinstance(feats[0], (list, np.ndarray)):
-            X = np.vstack([np.asarray(v) for v in feats]).astype(np.float32)
-        elif isinstance(feats[0], dict):
-            candidate_keys = ["features", "feats", "embeddings", "em", "output", "x"]
-            key = next((k for k in candidate_keys if k in feats[0]), None)
-            if key is None:
-                raise ValueError(f"Unrecognized dict list in {feature_file}")
-            X = np.vstack([np.asarray(d[key]) for d in feats]).astype(np.float32)
-
     if X is None:
-        raise ValueError(f"Unsupported features format in {feature_file}: type={type(feats)}, shape={getattr(feats, 'shape', None)}, dtype={getattr(feats, 'dtype', None)}")
+        raise ValueError(f"Unsupported features format in {feature_file}: type={type(obj)}, "
+                         f"shape={getattr(obj, 'shape', None)}, dtype={getattr(obj, 'dtype', None)}")
 
-    # Sanity checks / align counts
-    if N_expected != 0 and X.shape[0] != N_expected:
-        log.warning(f"Feature/sample mismatch for {feature_file}: got N={X.shape[0]}, expected {N_expected}. Proceeding with min(N_expected, N).")
-        N = min(N_expected, X.shape[0])
-        X = X[:N]
-        paths = split.paths[:N]
-        names = split.names[:N]
+    # Use extractor-provided paths if they match N
+    if paths_from_file and len(paths_from_file) == X.shape[0]:
+        paths = paths_from_file
+        # map names by path if possible
+        by_abs = {str(Path(p).resolve()): n for p, n in zip(split.paths, split.names)}
+        names = [by_abs.get(str(Path(p).resolve()), split.names[0]) for p in paths]
     else:
-        paths = split.paths
-        names = split.names
+        paths, names = split.paths, split.names
 
-    # L2 normalize row-wise
+    # Align sizes (clip to min if mismatch)
+    if len(paths) != X.shape[0]:
+        log.warning(f"Feature/sample mismatch for {feature_file}: got N={X.shape[0]}, expected {len(paths)}. Proceeding with min().")
+        N = min(len(paths), X.shape[0])
+        X, paths, names = X[:N], paths[:N], names[:N]
+
+    # L2 normalize
     X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
 
-    # Build labels
     labels = encoder.transform(names)
-
     return X, labels, names, paths
+
 
 
 def cosine_prototypes(X: np.ndarray, y: np.ndarray, n_classes: int) -> np.ndarray:
@@ -370,9 +377,18 @@ def evaluate_one_model(model_name: str, weight_path: str, enc: LabelEncoder,
     acc = accuracy_score(yte, ypred_p)
     prec_w, rec_w, f1_w, _ = precision_recall_fscore_support(yte, ypred_p, average="weighted", zero_division=0)
     prec_m, rec_m, f1_m, _ = precision_recall_fscore_support(yte, ypred_p, average="macro", zero_division=0)
-    cls_report = classification_report(yte, ypred_p, target_names=list(enc.classes_), output_dict=True, zero_division=0)
+    # cls_report = classification_report(yte, ypred_p, target_names=list(enc.classes_), output_dict=True, zero_division=0)
     cm = confusion_matrix(yte, ypred_p)
-    
+    present_labels = np.unique(yte)
+    present_names = enc.inverse_transform(present_labels)
+    cls_report = classification_report(
+        yte, ypred_p,
+        labels=present_labels,
+        target_names=list(present_names),
+        output_dict=True,
+        zero_division=0
+    )
+
     # Save detailed results
     pred_names_p = enc.inverse_transform(ypred_p)
     true_names = enc.inverse_transform(yte)

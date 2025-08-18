@@ -214,13 +214,12 @@ def load_features(feature_file: str,
                   split: Split,
                   encoder: LabelEncoder) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
     """
-    Load features from many extractor variants and return:
-    X: [N, D] float32 (L2-normalized), labels, names, paths.
+    Robustly load features and strictly align them to labels.
+    Returns X [N,D] float32 (L2-normalized), labels y, names, paths.
     """
     N_expected = len(split.paths)
     obj = np.load(feature_file, allow_pickle=True)
 
-    # Unwrap 0-D object array (np.save(dict/list/tuple))
     if isinstance(obj, np.ndarray) and obj.ndim == 0 and obj.dtype == object:
         obj = obj.item()
 
@@ -230,28 +229,28 @@ def load_features(feature_file: str,
     def _stack(seq):
         return np.vstack([np.asarray(v) for v in seq]).astype(np.float32)
 
-    # Dict formats
+    # Parse common formats
     if isinstance(obj, dict):
         feat_keys = ["features", "feats", "embeddings", "em", "outputs", "x"]
         path_keys = ["paths", "image_paths", "filenames", "files"]
         kf = next((k for k in feat_keys if k in obj), None)
         if kf is None:
             raise ValueError(f"Unknown feature dict format in {feature_file}. Keys={list(obj.keys())}")
-        X_raw = obj[kf]
-        if isinstance(X_raw, list):
-            X = _stack(X_raw)
-        elif isinstance(X_raw, np.ndarray):
-            if X_raw.ndim == 2:
-                X = X_raw.astype(np.float32)
-            elif X_raw.ndim == 1 and X_raw.dtype == object:
-                X = _stack(X_raw)
-            elif N_expected and X_raw.size % N_expected == 0:
-                X = X_raw.reshape(N_expected, -1).astype(np.float32)
+        raw = obj[kf]
+        if isinstance(raw, list):
+            X = _stack(raw)
+        elif isinstance(raw, np.ndarray):
+            if raw.ndim == 2:
+                X = raw.astype(np.float32)
+            elif raw.ndim == 1 and raw.dtype == object:
+                X = _stack(raw)
+            elif N_expected and raw.size % N_expected == 0:
+                X = raw.reshape(N_expected, -1).astype(np.float32)
+
         kp = next((k for k in path_keys if k in obj), None)
         if kp is not None:
             paths_from_file = [str(p) for p in obj[kp]]
 
-    # List/tuple formats
     elif isinstance(obj, (list, tuple)):
         first = obj[0]
         if isinstance(first, (list, np.ndarray)):
@@ -263,11 +262,9 @@ def load_features(feature_file: str,
                 raise ValueError(f"Unrecognized dict list in {feature_file}")
             X = _stack([o[kf] for o in obj])
 
-    # 2-D numeric
     elif isinstance(obj, np.ndarray) and obj.ndim == 2 and np.issubdtype(obj.dtype, np.number):
         X = obj.astype(np.float32)
 
-    # 1-D variants
     elif isinstance(obj, np.ndarray) and obj.ndim == 1:
         if obj.dtype == object:
             X = _stack(obj)
@@ -282,27 +279,87 @@ def load_features(feature_file: str,
         raise ValueError(f"Unsupported features format in {feature_file}: type={type(obj)}, "
                          f"shape={getattr(obj, 'shape', None)}, dtype={getattr(obj, 'dtype', None)}")
 
-    # Use extractor-provided paths if they match N
+    # ---- STRICT ALIGNMENT ----
+    def _canon(p: str) -> str:
+        try:
+            return str(Path(p).resolve())
+        except Exception:
+            return str(Path(p))
+
+    # Build absolute-path map for the split
+    split_abs = [_canon(p) for p in split.paths]
+    name_by_abs = {a: n for a, n in zip(split_abs, split.names)}
+
+    names: List[str]
+    paths: List[str]
+
     if paths_from_file and len(paths_from_file) == X.shape[0]:
+        ext_abs = [_canon(p) for p in paths_from_file]
+        names = []
+        misses = []
+        for a in ext_abs:
+            n = name_by_abs.get(a)
+            names.append(n)
+            if n is None:
+                misses.append(a)
+
+        # If absolute path matching failed, try unique basename matching
+        if misses:
+            base_counts = {}
+            for p in split.paths:
+                base = Path(p).name
+                base_counts[base] = base_counts.get(base, 0) + 1
+            # only build basename map if unique
+            if all(c == 1 for c in base_counts.values()):
+                base_to_name = {Path(p).name: n for p, n in zip(split.paths, split.names)}
+                names2 = []
+                misses2 = []
+                for p in paths_from_file:
+                    n = base_to_name.get(Path(p).name)
+                    names2.append(n)
+                    if n is None:
+                        misses2.append(p)
+                if not misses2:
+                    names = names2
+                else:
+                    raise ValueError(f"Could not align {len(misses2)} extractor paths to split by basename.")
+            else:
+                raise ValueError(f"Could not align {len(misses)} extractor paths to split by absolute path.")
+
         paths = paths_from_file
-        # map names by path if possible
-        by_abs = {str(Path(p).resolve()): n for p, n in zip(split.paths, split.names)}
-        names = [by_abs.get(str(Path(p).resolve()), split.names[0]) for p in paths]
     else:
+        # If extractor didn't return paths, we assume it preserved input order.
+        if X.shape[0] != len(split.paths):
+            raise ValueError(f"Extractor returned N={X.shape[0]} features but split has {len(split.paths)} paths.")
         paths, names = split.paths, split.names
 
-    # Align sizes (clip to min if mismatch)
-    if len(paths) != X.shape[0]:
-        log.warning(f"Feature/sample mismatch for {feature_file}: got N={X.shape[0]}, expected {len(paths)}. Proceeding with min().")
-        N = min(len(paths), X.shape[0])
-        X, paths, names = X[:N], paths[:N], names[:N]
+    # Final size check (must match exactly)
+    if len(names) != X.shape[0]:
+        raise ValueError(f"Label alignment size mismatch: got {X.shape[0]} feats vs {len(names)} labels.")
 
-    # L2 normalize
+    # Normalize
     X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
 
+    # Encode labels
     labels = encoder.transform(names)
-    return X, labels, names, paths
+    return X.astype(np.float32), labels, names, paths
 
+
+def assert_no_overlap(train_split: Split, test_split: Split):
+    tr = {str(Path(p).resolve()) for p in train_split.paths}
+    te = {str(Path(p).resolve()) for p in test_split.paths}
+    inter = tr & te
+    if inter:
+        raise AssertionError(f"Train/Test leakage: {len(inter)} files overlap. E.g., {next(iter(inter))}")
+
+def sanity_checks(y_true: np.ndarray, y_pred: np.ndarray, enc: LabelEncoder, tag: str):
+    # Must have at least 2 classes in the test labels
+    if len(np.unique(y_true)) < 2:
+        raise AssertionError(f"[{tag}] Only one class present in y_true — something’s wrong with label alignment.")
+    # Randomization sanity: accuracy should drop near chance after permuting predictions
+    from sklearn.metrics import accuracy_score
+    perm_acc = accuracy_score(y_true, np.random.permutation(y_pred))
+    log.info(f"[{tag}] Sanity permuted-accuracy (should be near chance): {perm_acc:.3f}")
 
 
 def cosine_prototypes(X: np.ndarray, y: np.ndarray, n_classes: int) -> np.ndarray:

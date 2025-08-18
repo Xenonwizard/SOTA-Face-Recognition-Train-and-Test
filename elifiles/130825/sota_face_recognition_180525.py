@@ -218,19 +218,85 @@ def extract_features_official(model_path: str,
         log.error(f"STDERR: {e.stderr}")
         return None
 
+def load_features(feature_file: str,
+                  split: Split,
+                  encoder: LabelEncoder) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
+    """
+    Load features robustly from various formats the official extractor might write.
+    Returns (X, y, names, paths) where X is [N, D] float32 and L2-normalized.
+    """
+    N_expected = len(split.paths)
 
-def load_features(feature_file: str, split: Split, encoder: LabelEncoder) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
-    """Load features from official feature extractor output"""
-    # The official feature extractor saves features as .npy file
-    features = np.load(feature_file)
-    
-    # Create labels array
-    labels = encoder.transform(split.names)
-    
-    # Ensure features are L2 normalized (official repo should do this, but double check)
-    features = features / (np.linalg.norm(features, axis=1, keepdims=True) + 1e-12)
-    
-    return features, labels, split.names, split.paths
+    # 1) Load with pickle allowed (some writers store objects/dicts)
+    feats = np.load(feature_file, allow_pickle=True)
+
+    # 2) Normalize to a [N, D] float array
+    X = None
+
+    # Case A: already 2D numeric
+    if isinstance(feats, np.ndarray) and feats.ndim == 2 and np.issubdtype(feats.dtype, np.number):
+        X = feats.astype(np.float32)
+
+    # Case B: 1D object array of arrays or dicts
+    elif isinstance(feats, np.ndarray) and feats.ndim == 1:
+        # Try object array of vectors
+        if feats.dtype == object:
+            first = feats[0]
+            # Object array of ndarrays
+            if isinstance(first, np.ndarray):
+                X = np.vstack([np.asarray(v) for v in feats]).astype(np.float32)
+            # Object array of dicts with a feature key
+            elif isinstance(first, dict):
+                candidate_keys = ["features", "feats", "embeddings", "em", "output", "x"]
+                key = next((k for k in candidate_keys if k in first), None)
+                if key is None:
+                    raise ValueError(f"Unrecognized dict format in {feature_file}. Keys of first item: {list(first.keys())}")
+                X = np.vstack([np.asarray(d[key]) for d in feats]).astype(np.float32)
+        # 1D numeric: maybe flattened [N*D]
+        elif np.issubdtype(feats.dtype, np.number):
+            flat = feats.astype(np.float32)
+            if N_expected > 0 and flat.size % N_expected == 0:
+                D = flat.size // N_expected
+                X = flat.reshape(N_expected, D)
+            else:
+                # Could be a single vector
+                X = flat.reshape(1, -1)
+
+    # Case C: plain 1D Python list was saved
+    if X is None and isinstance(feats, list):
+        if len(feats) == 0:
+            raise ValueError(f"No features found in {feature_file}")
+        if isinstance(feats[0], (list, np.ndarray)):
+            X = np.vstack([np.asarray(v) for v in feats]).astype(np.float32)
+        elif isinstance(feats[0], dict):
+            candidate_keys = ["features", "feats", "embeddings", "em", "output", "x"]
+            key = next((k for k in candidate_keys if k in feats[0]), None)
+            if key is None:
+                raise ValueError(f"Unrecognized dict list in {feature_file}")
+            X = np.vstack([np.asarray(d[key]) for d in feats]).astype(np.float32)
+
+    if X is None:
+        raise ValueError(f"Unsupported features format in {feature_file}: type={type(feats)}, shape={getattr(feats, 'shape', None)}, dtype={getattr(feats, 'dtype', None)}")
+
+    # Sanity checks / align counts
+    if N_expected != 0 and X.shape[0] != N_expected:
+        log.warning(f"Feature/sample mismatch for {feature_file}: got N={X.shape[0]}, expected {N_expected}. Proceeding with min(N_expected, N).")
+        N = min(N_expected, X.shape[0])
+        X = X[:N]
+        paths = split.paths[:N]
+        names = split.names[:N]
+    else:
+        paths = split.paths
+        names = split.names
+
+    # L2 normalize row-wise
+    X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
+
+    # Build labels
+    labels = encoder.transform(names)
+
+    return X, labels, names, paths
+
 
 def cosine_prototypes(X: np.ndarray, y: np.ndarray, n_classes: int) -> np.ndarray:
     """Compute class prototypes using mean embeddings"""

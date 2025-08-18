@@ -114,41 +114,55 @@ def create_image_list_file(split: Split, filename: str) -> str:
             writer.writerow([path])  # Each path as a single-column CSV row
     return str(filepath)
 
-def extract_features_official(model_path: str, image_list_file: str, feature_output_dir: str, prefix: str) -> str:
-    """Use official feature extractor from current SOTA-FR-train-and-test repository"""
+# --- replace this function ---
+def extract_features_official(model_path: str, image_list_file: str, feature_output_base: str, prefix: str) -> str:
+    """
+    Use official feature extractor from current SOTA-FR-train-and-test repository.
+
+    feature_output_base: full path (without extension) that the official script will use.
+                         The extractor will write feature_output_base + '.npy'.
+    """
     try:
-        # Create output directory
-        Path(feature_output_dir).mkdir(parents=True, exist_ok=True)
-        
+        out_base = Path(feature_output_base)
+        out_base.parent.mkdir(parents=True, exist_ok=True)
+
         cmd = [
             "python3", "./feature_extractor.py",
             "--model_path", model_path,
-            "--model", "iresnet", 
+            "--model", "iresnet",
             "--depth", "100",
             "--image_paths", image_list_file,
-            "--destination", feature_output_dir  # Directory, not file
+            "--destination", str(out_base)     # pass a FILE BASE, not a directory
         ]
-        
+
         log.info(f"Running official feature extraction: {' '.join(cmd)}")
         result = subprocess.run(cmd, cwd=".", capture_output=True, text=True, check=True)
         log.info("Feature extraction completed successfully")
-        
-        # The feature extractor creates its own filename - we need to find it
-        # Look for .npy files in the output directory
-        npy_files = list(Path(feature_output_dir).glob("*.npy"))
-        if npy_files:
-            # Return the most recently created .npy file
-            latest_file = max(npy_files, key=lambda p: p.stat().st_mtime)
-            return str(latest_file)
-        else:
-            log.error(f"No .npy files found in {feature_output_dir}")
-            return None
-        
+
+        # Expected output: <destination>.npy
+        expected_file = out_base.with_suffix(".npy")
+        if expected_file.exists():
+            return str(expected_file)
+
+        # Fallbacks: some forks may already include .npy in the arg, or dump into a folder
+        if out_base.suffix == ".npy" and out_base.exists():
+            return str(out_base)
+
+        if out_base.is_dir():
+            npy_files = list(out_base.glob("*.npy"))
+            if npy_files:
+                latest_file = max(npy_files, key=lambda p: p.stat().st_mtime)
+                return str(latest_file)
+
+        log.error(f"No .npy features found. Looked for {expected_file} (and fallbacks).")
+        return None
+
     except subprocess.CalledProcessError as e:
         log.error(f"Feature extraction failed: {e}")
         log.error(f"STDOUT: {e.stdout}")
         log.error(f"STDERR: {e.stderr}")
         return None
+
 
 def load_features(feature_file: str, split: Split, encoder: LabelEncoder) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
     """Load features from official feature extractor output"""
@@ -194,22 +208,24 @@ def evaluate_one_model(model_name: str, weight_path: str, enc: LabelEncoder,
     train_list_file = create_image_list_file(train_split, f"{model_name}_train_images.csv")
     test_list_file = create_image_list_file(test_split, f"{model_name}_test_images.csv")
     
-    # Create separate directories for train and test features
-    train_features_dir = str(TEMP_DIR / f"{model_name}_train_features")
-    test_features_dir = str(TEMP_DIR / f"{model_name}_test_features")
-    
-    # Extract training features
+   
+    # Base file paths (no extension); extractor will create .npy here
+    train_features_base = str(TEMP_DIR / f"{model_name}_train_features")
+    test_features_base  = str(TEMP_DIR / f"{model_name}_test_features")
+
     log.info(f"[{model_name}] Extracting training features using official method...")
-    train_features_file = extract_features_official(weight_path, train_list_file, train_features_dir, f"{model_name}_train")
+    train_features_file = extract_features_official(
+        weight_path, train_list_file, train_features_base, f"{model_name}_train"
+    )
     if train_features_file is None:
         return {"model": model_name, "error": "training feature extraction failed"}
-    
-    # Extract test features  
+
     log.info(f"[{model_name}] Extracting test features using official method...")
-    test_features_file = extract_features_official(weight_path, test_list_file, test_features_dir, f"{model_name}_test")
+    test_features_file = extract_features_official(
+        weight_path, test_list_file, test_features_base, f"{model_name}_test"
+    )
     if test_features_file is None:
         return {"model": model_name, "error": "test feature extraction failed"}
-    
     # Load extracted features
     try:
         Xtr, ytr, tr_names, tr_paths = load_features(train_features_file, train_split, enc)

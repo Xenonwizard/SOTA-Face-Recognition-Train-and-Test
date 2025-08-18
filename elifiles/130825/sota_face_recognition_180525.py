@@ -105,15 +105,25 @@ def build_splits() -> Tuple[Split, Split, LabelEncoder]:
 
 def create_image_list_file(split: Split, filename: str) -> str:
     """
-    Create a plain-text file with one absolute image path per line.
-    Many FR extractors expect a .txt (not CSV).
+    Create a single-column CSV file of absolute paths, with ALL fields quoted.
+    This survives commas in filenames/dirs when pandas.read_csv parses it.
     """
+    import csv
     filepath = TEMP_DIR / filename
-    with open(filepath, 'w') as f:
-        for path in split.paths:
-            f.write(f"{Path(path).resolve()}\n")
-    return str(filepath)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
+    with open(filepath, "w", newline="") as f:
+        writer = csv.writer(
+            f,
+            delimiter=",",
+            quotechar='"',
+            quoting=csv.QUOTE_ALL,   # <— quote *every* field
+            lineterminator="\n",
+            escapechar="\\",
+        )
+        for p in split.paths:
+            writer.writerow([str(Path(p).resolve())])
+    return str(filepath)
 
 # --- replace this function ---
 

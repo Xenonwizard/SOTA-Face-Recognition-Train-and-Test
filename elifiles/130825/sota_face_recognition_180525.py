@@ -104,11 +104,14 @@ def build_splits() -> Tuple[Split, Split, LabelEncoder]:
     return Split(list(tr_paths), list(tr_names)), Split(list(te_paths), list(te_names)), enc
 
 def create_image_list_file(split: Split, filename: str) -> str:
-    """Create image list file for official feature extractor"""
+    """Create image list CSV file for official feature extractor"""
     filepath = TEMP_DIR / filename
-    with open(filepath, 'w') as f:
+    # Create CSV with proper escaping for paths that might contain commas/spaces
+    import csv
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
         for path in split.paths:
-            f.write(f"{path}\n")
+            writer.writerow([path])  # Each path as a single-column CSV row
     return str(filepath)
 
 def extract_features_official(model_path: str, image_list_file: str, feature_output_file: str) -> bool:

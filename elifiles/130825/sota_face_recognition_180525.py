@@ -104,58 +104,103 @@ def build_splits() -> Tuple[Split, Split, LabelEncoder]:
     return Split(list(tr_paths), list(tr_names)), Split(list(te_paths), list(te_names)), enc
 
 def create_image_list_file(split: Split, filename: str) -> str:
-    """Create image list CSV file for official feature extractor"""
+    """
+    Create a plain-text file with one absolute image path per line.
+    Many FR extractors expect a .txt (not CSV).
+    """
     filepath = TEMP_DIR / filename
-    # Create CSV with proper escaping for paths that might contain commas/spaces
-    import csv
-    with open(filepath, 'w', newline='') as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+    with open(filepath, 'w') as f:
         for path in split.paths:
-            writer.writerow([path])  # Each path as a single-column CSV row
+            f.write(f"{Path(path).resolve()}\n")
     return str(filepath)
 
-# --- replace this function ---
-def extract_features_official(model_path: str, image_list_file: str, feature_output_base: str, prefix: str) -> str:
-    """
-    Use official feature extractor from current SOTA-FR-train-and-test repository.
 
-    feature_output_base: full path (without extension) that the official script will use.
-                         The extractor will write feature_output_base + '.npy'.
+# --- replace this function ---
+
+def extract_features_official(model_path: str,
+                              image_list_file: str,
+                              feature_output_base: str,
+                              prefix: str) -> str:
+    """
+    Run the official extractor and robustly find the produced .npy, regardless
+    of whether --destination is treated as a folder, a file base, or ignored.
+
+    Returns the final, normalized path to a .npy inside TEMP_DIR.
     """
     try:
         out_base = Path(feature_output_base)
         out_base.parent.mkdir(parents=True, exist_ok=True)
 
+        # Snapshot existing npy files and current time
+        search_roots = [REPO_DIR, TEMP_DIR]
+        before = {p.resolve() for root in search_roots for p in root.rglob("*.npy")}
+        import time
+        start_time = time.time()
+
+        # Build command – pass destination (works for file-base or folder cases)
         cmd = [
             "python3", "./feature_extractor.py",
             "--model_path", model_path,
             "--model", "iresnet",
             "--depth", "100",
             "--image_paths", image_list_file,
-            "--destination", str(out_base)     # pass a FILE BASE, not a directory
+            "--destination", str(out_base)
         ]
-
         log.info(f"Running official feature extraction: {' '.join(cmd)}")
         result = subprocess.run(cmd, cwd=".", capture_output=True, text=True, check=True)
         log.info("Feature extraction completed successfully")
 
-        # Expected output: <destination>.npy
-        expected_file = out_base.with_suffix(".npy")
-        if expected_file.exists():
-            return str(expected_file)
+        # Candidates generated after start_time
+        candidates = []
+        for root in search_roots:
+            for p in root.rglob("*.npy"):
+                try:
+                    st = p.stat()
+                    if st.st_mtime >= start_time - 1 and p.resolve() not in before:
+                        candidates.append((st.st_mtime, st.st_size, p))
+                except FileNotFoundError:
+                    continue
 
-        # Fallbacks: some forks may already include .npy in the arg, or dump into a folder
-        if out_base.suffix == ".npy" and out_base.exists():
-            return str(out_base)
+        # Extra fallbacks if extractor overwrote an existing file
+        if not candidates:
+            expected1 = out_base.with_suffix(".npy")
+            expected2 = out_base if out_base.suffix == ".npy" else None
+            for p in [expected1, expected2]:
+                if p and p.exists():
+                    st = p.stat()
+                    if st.st_mtime >= start_time - 1:
+                        candidates.append((st.st_mtime, st.st_size, p))
 
-        if out_base.is_dir():
-            npy_files = list(out_base.glob("*.npy"))
-            if npy_files:
-                latest_file = max(npy_files, key=lambda p: p.stat().st_mtime)
-                return str(latest_file)
+        if not candidates:
+            log.error("No new .npy features found after extraction.")
+            log.error(f"STDOUT: {result.stdout}")
+            log.error(f"STDERR: {result.stderr}")
+            return None
 
-        log.error(f"No .npy features found. Looked for {expected_file} (and fallbacks).")
-        return None
+        # Prefer a file containing our prefix; otherwise newest, then largest
+        def score(t):
+            mtime, size, path = t
+            has_prefix = 1 if prefix.lower() in path.name.lower() else 0
+            return (has_prefix, mtime, size)
+
+        best = sorted(candidates, key=score, reverse=True)[0][2]
+
+        # Normalize location/name
+        final_path = TEMP_DIR / f"{prefix}_features.npy"
+        try:
+            if best.resolve() != final_path.resolve():
+                final_path.unlink(missing_ok=True)
+                # Move if same filesystem, else copy
+                try:
+                    best.replace(final_path)
+                except Exception:
+                    import shutil as _sh
+                    _sh.copy2(best, final_path)
+            log.info(f"Features saved to: {final_path}")
+            return str(final_path)
+        except Exception as e:
+            log.error(f"Failed to move/copy features file: {e}")
+            return str(best)
 
     except subprocess.CalledProcessError as e:
         log.error(f"Feature extraction failed: {e}")
